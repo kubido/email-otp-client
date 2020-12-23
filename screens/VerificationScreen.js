@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import {
   View,
   Image,
@@ -16,10 +17,29 @@ import {
 } from '../components/Styled'
 
 
-const VerificationScreen = ({ navigation }) => {
+const VerificationScreen = ({ navigation, route }) => {
   const codesLength = 6
-  const [codes, setCodes] = useState(Array(codesLength).fill(null))
+  const [loading, setLoading] = useState(false)
+  const [codes, setCodes] = useState(null)
+  const [clipboard, setClipboard] = useState(null)
+  const [validCodes, setValidCodes] = useState(false)
   const textInputs = []
+
+  useEffect(() => {
+    async function getClipboard() {
+      const dataClipboard = await Clipboard.getStringAsync();
+      setClipboard(dataClipboard)
+    }
+    setCodes(Array(codesLength).fill(null))
+  }, [])
+
+  useEffect(() => {
+
+    if (codes) {
+      let validCodes = codes.filter(Number)
+      setValidCodes(validCodes.length === 6)
+    }
+  }, [codes])
 
   const inputFocusHandler = (val, idx) => {
     let nextIdx = val ? idx + 1 : idx - 1
@@ -29,7 +49,7 @@ const VerificationScreen = ({ navigation }) => {
     if (input) input.focus()
 
     let newCodes = [...codes]
-    newCodes[idx] = val
+    newCodes[idx] = +val
     setCodes(newCodes)
   }
 
@@ -43,16 +63,33 @@ const VerificationScreen = ({ navigation }) => {
     setCodes(newCodes)
     Clipboard.setString(null)
     if (input) input.focus()
-
   }
 
   const inputHandler = async (val, idx, direction) => {
-    const clipboard = await Clipboard.getStringAsync();
     if (clipboard) {
       inputClipboardHandler(clipboard)
     } else {
       inputFocusHandler(val, idx, direction)
     }
+  }
+
+  const verify = () => {
+    setLoading(true)
+    const { email } = route.params
+    let url = "https://blys.bukawa.xyz/otp/verify"
+    let data = {
+      email,
+      code: +codes.join("")
+    }
+    axios.post(url, data)
+      .then(resp => {
+        navigation.navigate('VerificationStatus', { status: resp.data.status })
+        setLoading(false)
+      })
+      .catch(err => {
+        alert(err)
+        setLoading(false)
+      })
   }
 
   return (
@@ -70,7 +107,7 @@ const VerificationScreen = ({ navigation }) => {
             <Text style={{
               fontSize: 18,
               textAlign: 'center',
-            }}>Enter the verification code we just sent you on your email address</Text>
+            }}>Enter the verification code {route.params.code} we just sent you on your email address</Text>
 
 
             <View style={{
@@ -80,11 +117,10 @@ const VerificationScreen = ({ navigation }) => {
               flexDirection: 'row',
               justifyContent: 'space-between'
             }}>
-              {codes.map((code, idx) => (
+              {codes && codes.map((code, idx) => (
                 <InputBox
                   key={idx}
                   keyboardType='decimal-pad'
-                  value={code}
                   maxLength={1}
                   textAlign="center"
                   onKeyPress={(event) => {
@@ -102,10 +138,13 @@ const VerificationScreen = ({ navigation }) => {
 
 
             <Button
-              onPress={() => navigation.navigate('VerificationStatus')}
-              title="Send"
+              onPress={() => verify()}
+              title="Verify"
               type="solid"
+              disabled={!validCodes}
               titleStyle={{ color: '#100249', }}
+              loading={loading}
+              loadingProps={{ color: '#100249', }}
               buttonStyle={{
                 borderWidth: 1,
                 backgroundColor: '#ffffff',

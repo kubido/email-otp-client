@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Image, Text, TouchableWithoutFeedback, KeyboardAvoidingView, Keyboard } from 'react-native';
+import axios from 'axios';
+import {
+  View,
+  Image,
+  Text,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Keyboard
+} from 'react-native';
 import { Input, Button } from 'react-native-elements';
 
 import {
@@ -7,8 +16,33 @@ import {
 } from '../components/Styled'
 
 const HomeScreen = ({ navigation }) => {
+  const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState(null)
   const [validEmail, setValidEmail] = useState(null)
+
+  const getCode = () => {
+    setLoading(true)
+    let url = "https://blys.bukawa.xyz/otp/code"
+    axios.post(url, {
+      email
+    })
+      .then(resp => {
+        navigation.navigate('Verification', { email, code: resp.data.code })
+        setLoading(false)
+      })
+      .catch(err => {
+        alert(err)
+        setLoading(false)
+      })
+
+  }
+
+  const inputHandler = (text) => {
+    let re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    let valid = re.test(text.toLowerCase());
+    setValidEmail(valid)
+    setEmail(text)
+  }
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS == "ios" ? "padding" : "height"}
@@ -34,17 +68,20 @@ const HomeScreen = ({ navigation }) => {
           </Text>
             <Input
               containerStyle={{ marginVertical: 15 }}
-              onChangeText={(text) => setEmail(text)}
+              onChangeText={(text) => inputHandler(text)}
               inputStyle={{ fontFamily: 'Roboto', borderColor: '#100249' }}
               placeholder="Enter your email"
               errorStyle={{ color: 'red' }}
               errorMessage={email && !validEmail ? "Invalid email" : null}
             />
             <Button
-              onPress={() => navigation.navigate('Verification')}
+              onPress={() => getCode()}
               title="Send"
-              type="solid"
+              disabled={!validEmail}
+              loading={loading}
               titleStyle={{ color: '#100249', }}
+              type="solid"
+              loadingProps={{ color: '#100249', }}
               buttonStyle={{
                 borderWidth: 1,
                 backgroundColor: '#ffffff',
